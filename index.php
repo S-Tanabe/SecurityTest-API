@@ -2,10 +2,21 @@
 require 'vendor/autoload.php';
 
 $app = new \Slim\App();
-$app->response->headers->set('Content-Type', 'application/json');
 
-$db = new PDO('sqlite:security.db');
-$db->exec('CREATE TABLE IF NOT EXISTS problems(id INTEGER PRIMARY KEY, contents TEXT)');
+function getPDO()
+{
+    static $pdo = null;
+    if (!is_null($pdo)) {
+        return $pdo;
+    }
+
+    $pdo = new PDO('sqlite:security.db');
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+    return $pdo;
+}
+
 
 $app->get('/', function(Slim\Http\Request $req, Slim\Http\Response $res, $args = [])
 {
@@ -14,8 +25,11 @@ $app->get('/', function(Slim\Http\Request $req, Slim\Http\Response $res, $args =
 
 $app->get('/problems', function(Slim\Http\Request $req, Slim\Http\Response $res, $args = [])
 {
-    $problems = $db->query('SELECT id, contents FROM problems ORDER BY ID DESC')->fetchAll(PDO::FETCH_ASSOC);
-    return $res->withStatus(200)->write(json_encode($problems));
+    $pdo = getPDO();
+    $stmt = $pdo->prepare("SELECT id, title, content, point FROM problems ORDER BY ID DESC");
+    $stmt->execute([]);
+    $problems = $stmt->fetchAll();
+    return $res->withJson($problems, 200, JSON_PRETTY_PRINT);
 });
 
 $app->run();
